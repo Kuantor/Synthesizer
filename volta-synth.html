@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VOLTA · subtractive synthesizer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0c0b0a;
+    --panel:#1b1a16;
+    --panel-2:#232118;
+    --module:#211f1a;
+    --ink:#d9d3c4;
+    --ink-dim:#8c8678;
+    --ink-faint:#5d584e;
+    --amber:#eaa53d;
+    --amber-soft:#f0bd64;
+    --amber-glow:rgba(234,165,61,.45);
+    --line:#36322a;
+    --line-soft:#2a2722;
+    --wood-a:#5b3d24;
+    --wood-b:#4a3019;
+    --key-w:#e9e3d4;
+    --radius:7px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:"Space Grotesk",system-ui,sans-serif;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:32px 16px 56px;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .shell{
+    width:100%;
+    max-width:980px;
+    display:flex;
+    border-radius:12px;
+    overflow:hidden;
+    box-shadow:0 24px 60px rgba(0,0,0,.55), 0 2px 0 rgba(255,255,255,.03) inset;
+  }
+  .cheek{
+    width:26px;
+    flex:0 0 26px;
+    background:
+      repeating-linear-gradient(180deg, rgba(0,0,0,.18) 0 2px, rgba(255,255,255,.025) 2px 5px),
+      linear-gradient(90deg,var(--wood-b),var(--wood-a));
+  }
+  .panel{
+    flex:1 1 auto;
+    background:
+      radial-gradient(120% 90% at 50% -10%, rgba(255,255,255,.035), transparent 60%),
+      var(--panel);
+    padding:22px 22px 26px;
+    min-width:0;
+  }
+
+  header.top{
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap:20px;
+    flex-wrap:wrap;
+    border-bottom:1px solid var(--line);
+    padding-bottom:18px;
+    margin-bottom:20px;
+  }
+  .brand{line-height:1;}
+  .brand h1{
+    margin:0;
+    font-size:38px;
+    font-weight:700;
+    letter-spacing:.16em;
+    color:var(--ink);
+  }
+  .brand .sub{
+    margin-top:8px;
+    font-family:"Space Mono",monospace;
+    font-size:11px;
+    letter-spacing:.32em;
+    text-transform:uppercase;
+    color:var(--ink-dim);
+  }
+
+  .scope-wrap{
+    display:flex;
+    align-items:center;
+    gap:12px;
+  }
+  .power{
+    display:flex;align-items:center;gap:8px;
+    font-family:"Space Mono",monospace;font-size:10px;
+    letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);
+  }
+  .led{
+    width:9px;height:9px;border-radius:50%;
+    background:#3a342a;border:1px solid #000;
+    transition:background .2s, box-shadow .2s;
+  }
+  .led.on{background:var(--amber);box-shadow:0 0 9px var(--amber-glow);}
+  .scope{
+    width:212px;height:78px;
+    background:#100f0c;
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    display:block;
+  }
+
+  .rack{
+    display:flex;
+    gap:14px;
+    flex-wrap:wrap;
+    align-items:stretch;
+  }
+  .module{
+    background:var(--module);
+    border:1px solid var(--line-soft);
+    border-radius:var(--radius);
+    padding:13px 14px 15px;
+    display:flex;
+    flex-direction:column;
+    flex:1 1 0;
+    min-width:128px;
+  }
+  .module h2{
+    margin:0 0 13px;
+    font-family:"Space Mono",monospace;
+    font-size:10px;
+    font-weight:700;
+    letter-spacing:.26em;
+    text-transform:uppercase;
+    color:var(--amber);
+  }
+  .row{display:flex;gap:14px;justify-content:space-around;flex:1;}
+  .col{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:8px;}
+
+  /* faders */
+  .fader{
+    position:relative;
+    width:30px;height:118px;
+    cursor:ns-resize;
+    outline:none;
+    touch-action:none;
+  }
+  .fader .slot{
+    position:absolute;left:50%;top:4px;bottom:4px;width:4px;
+    transform:translateX(-50%);
+    background:#100f0c;
+    border-radius:3px;
+    box-shadow:0 1px 0 rgba(255,255,255,.04) inset;
+  }
+  .fader .fill{
+    position:absolute;left:50%;width:4px;transform:translateX(-50%);
+    background:var(--amber);bottom:4px;border-radius:3px;
+    box-shadow:0 0 6px var(--amber-glow);
+  }
+  .fader .cap{
+    position:absolute;left:50%;width:26px;height:14px;
+    transform:translate(-50%,-50%);
+    background:linear-gradient(180deg,#403a30,#211f1a);
+    border:1px solid #000;
+    border-radius:3px;
+  }
+  .fader .cap::after{
+    content:"";position:absolute;left:3px;right:3px;top:50%;height:2px;
+    transform:translateY(-50%);background:var(--amber-soft);border-radius:2px;
+    box-shadow:0 0 5px var(--amber-glow);
+  }
+  .fader:focus-visible .cap{border-color:var(--amber);box-shadow:0 0 0 2px var(--amber-glow);}
+  .lbl{
+    font-family:"Space Mono",monospace;font-size:9px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--ink-dim);text-align:center;
+  }
+  .val{
+    font-family:"Space Mono",monospace;font-size:10px;color:var(--ink);
+    min-height:13px;text-align:center;
+  }
+
+  /* selector buttons */
+  .seg{display:flex;flex-direction:column;gap:7px;align-items:center;width:100%;}
+  .btnrow{display:flex;gap:5px;flex-wrap:wrap;justify-content:center;}
+  button.opt{
+    font-family:"Space Mono",monospace;
+    font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--ink-dim);
+    background:#100f0c;
+    border:1px solid var(--line);
+    border-radius:5px;
+    padding:6px 8px;
+    cursor:pointer;
+    transition:.12s;
+    min-width:34px;
+  }
+  button.opt:hover{color:var(--ink);border-color:var(--ink-faint);}
+  button.opt.on{
+    color:#1b1a16;background:var(--amber);border-color:var(--amber);
+    box-shadow:0 0 9px var(--amber-glow);
+  }
+  button.opt:focus-visible{outline:2px solid var(--amber);outline-offset:1px;}
+  .octctl{display:flex;align-items:center;gap:8px;}
+  .octval{font-family:"Space Mono",monospace;font-size:13px;color:var(--ink);min-width:30px;text-align:center;}
+
+  .presets{
+    display:flex;gap:8px;flex-wrap:wrap;align-items:center;
+    margin:20px 0 4px;
+  }
+  .presets .tag{
+    font-family:"Space Mono",monospace;font-size:10px;letter-spacing:.2em;
+    text-transform:uppercase;color:var(--ink-faint);margin-right:4px;
+  }
+
+  /* keyboard */
+  .kbd-wrap{margin-top:18px;overflow-x:auto;padding-bottom:4px;}
+  .keyboard{
+    position:relative;height:160px;min-width:560px;
+    background:#0e0d0b;border:1px solid var(--line);border-radius:var(--radius);
+    padding:7px;
+  }
+  .keys{position:relative;height:100%;}
+  .kw{
+    position:absolute;bottom:0;top:0;
+    background:linear-gradient(180deg,#f3eee1,#ddd6c4);
+    border:1px solid #2a2722;border-top:none;
+    border-radius:0 0 5px 5px;cursor:pointer;
+  }
+  .kw.dn{background:linear-gradient(180deg,#f2c878,#e7ad4a);}
+  .kb{
+    position:absolute;top:0;height:62%;
+    background:linear-gradient(180deg,#23211c,#0d0c0a);
+    border:1px solid #000;border-radius:0 0 4px 4px;z-index:3;cursor:pointer;
+  }
+  .kb.dn{background:linear-gradient(180deg,#e7ad4a,#b87f23);}
+  .khint{
+    position:absolute;bottom:9px;width:100%;text-align:center;
+    font-family:"Space Mono",monospace;font-size:10px;color:#9a9384;
+    pointer-events:none;
+  }
+  .kb .khint{bottom:7px;color:#cdb78a;}
+
+  footer{
+    max-width:980px;width:100%;margin-top:18px;
+    font-family:"Space Mono",monospace;font-size:11px;color:var(--ink-faint);
+    letter-spacing:.04em;line-height:1.6;
+  }
+  footer b{color:var(--ink-dim);font-weight:400;}
+
+  @media (max-width:560px){
+    .cheek{display:none;}
+    .panel{padding:18px 14px 20px;}
+    .brand h1{font-size:30px;}
+    .scope{width:160px;height:60px;}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{transition:none !important;}
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <div class="cheek" aria-hidden="true"></div>
+  <div class="panel">
+
+    <header class="top">
+      <div class="brand">
+        <h1>VOLTA</h1>
+        <div class="sub">VS&middot;1 — subtractive voice</div>
+      </div>
+      <div class="scope-wrap">
+        <div class="power"><span class="led" id="led"></span><span id="powtxt">standby</span></div>
+        <canvas class="scope" id="scope" width="424" height="156" aria-label="Live oscilloscope of the synthesizer output"></canvas>
+      </div>
+    </header>
+
+    <div class="rack">
+
+      <section class="module" aria-label="Oscillator">
+        <h2>Oscillator</h2>
+        <div class="seg">
+          <div class="btnrow" id="waves">
+            <button class="opt on" data-wave="sawtooth" aria-label="sawtooth">SAW</button>
+            <button class="opt" data-wave="square" aria-label="square">SQR</button>
+            <button class="opt" data-wave="triangle" aria-label="triangle">TRI</button>
+            <button class="opt" data-wave="sine" aria-label="sine">SIN</button>
+          </div>
+          <div class="octctl">
+            <button class="opt" id="oct-dn" aria-label="octave down">&minus;</button>
+            <span class="octval" id="oct-val">0</span>
+            <button class="opt" id="oct-up" aria-label="octave up">+</button>
+          </div>
+        </div>
+        <div class="row" style="margin-top:14px;">
+          <div class="col">
+            <div class="val" data-for="detune">8</div>
+            <div class="fader" data-param="detune" data-min="0" data-max="40" data-step="1" data-value="8" tabindex="0" role="slider" aria-label="oscillator 2 detune, cents" aria-valuemin="0" aria-valuemax="40" aria-valuenow="8"><div class="slot"></div><div class="fill"></div><div class="cap"></div></div>
+            <div class="lbl">detune</div>
+          </div>
+          <div class="col">
+            <div class="val" data-for="thick">35</div>
+            <div class="fader" data-param="thick" data-min="0" data-max="100" data-step="1" data-value="35" tabindex="0" role="slider" aria-label="oscillator 2 level" aria-valuemin="0" aria-valuemax="100" aria-valuenow="35"><div class="slot"></div><div class="fill"></div><div class="cap"></div></div>
+            <div class="lbl">osc 2</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="module" aria-label="Filter">
+        <h2>Filter</h2>
+        <div class="row">
+          <div class="col">
+            <div class="val" data-for="cutoff">2200</div>
+            <div class="fader" data-param="cutoff" data-min="120" data-max="9000" data-step="10" data-value="2200" tabindex="0" role="slider" aria-label="filter cutoff, hertz" aria-valuemin="120" aria-valuemax="9000" aria-valuenow="2200"><div class="slot"></div><div class="fill"></div><div class="cap"></div></div>
+            <div class="lbl">cutoff</div>
+          </div>
+          <div class="col">
+            <div class="val" data-for="res">7</div>
+            <div class="fader" data-param="res" data-min="0" data-max="24" data-step="0.5" data-value="7" tabindex="0" role="slider" aria-label="filter resonance" aria-valuemin="0" aria-valuemax="24" aria-valuenow="7"><div class="slot"></div><div class="fill"></div><div class="cap"></div></div>
+            <div class="lbl">reso</div>
+          </div>
+          <div class="col">
+            <div class="val" data-for="fenv">45</div>
+            <div class="fader" data-param="fenv" data-min="0" data-max="100" data-step="1" data-value="45" tabindex="0" role="slider" aria-label="filter envelope amount" aria-valuemin="0" aria-valuemax="100" aria-valuenow="45"><div class="slot"></div><div class="fill"></div><div class="cap"></div></div>
+            <div class="lbl">env</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="module" aria-label="Amplitude envelope">
+        <h2>Amp&nbsp;env</h2>
+        <div class="row">
+          <div class="col">
+            <div class="val" data-for="att">4</div>
+            <div class="fader" data-param="att" data-min="0" data-max="100" data-step="1" data-value="4" tabindex="0" role="slider" aria-label="attack" aria-valuemin="0" aria-valuemax="100" aria-valuenow="4"><div class="slot"></div><div class="fill"></div><div class="cap"></div></div>
+            <div class="lbl">A</div>
+          </div>
+          <div class="col">
+            <div class="val" data-for="dec">30</div>
+            <div class="fader" data-param="dec" data-min="0" data-max="100" data-step="1" data-value="30" tabindex="0" role="slider" aria-label="decay" aria-valuemin="0" aria-valuemax="100" aria-valuenow="30"><div class="slot"></div><div class="fill"></div><div class="cap"></div></div>
+            <div class="lbl">D</div>
+          </div>
+          <div class="col">
+            <div class="val" data-for="sus">70</div>
+            <div class="fader" data-param="sus" data-min="0" data-max="100" data-step="1" data-value="70" tabindex="0" role="slider" aria-label="sustain" aria-valuemin="0" aria-valuemax="100" aria-valuenow="70"><div class="slot"></div><div class="fill"></div><div class="cap"></div></div>
+            <div class="lbl">S</div>
+          </div>
+          <div class="col">
+            <div class="val" data-for="rel">28</div>
+            <div class="fader" data-param="rel" data-min="0" data-max="100" data-step="1" data-value="28" tabindex="0" role="slider" aria-label="release" aria-valuemin="0" aria-valuemax="100" aria-valuenow="28"><div class="slot"></div><div class="fill"></div><div class="cap"></div></div>
+            <div class="lbl">R</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="module" aria-label="Low frequency oscillator">
+        <h2>LFO</h2>
+        <div class="row">
+          <div class="col">
+            <div class="val" data-for="lforate">5.0</div>
+            <div class="fader" data-param="lforate" data-min="0.1" data-max="14" data-step="0.1" data-value="5" tabindex="0" role="slider" aria-label="LFO rate, hertz" aria-valuemin="0.1" aria-valuemax="14" aria-valuenow="5"><div class="slot"></div><div class="fill"></div><div class="cap"></div></div>
+            <div class="lbl">rate</div>
+          </div>
+          <div class="col">
+            <div class="val" data-for="lfodepth">0</div>
+            <div class="fader" data-param="lfodepth" data-min="0" data-max="100" data-step="1" data-value="0" tabindex="0" role="slider" aria-label="LFO depth" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="slot"></div><div class="fill"></div><div class="cap"></div></div>
+            <div class="lbl">depth</div>
+          </div>
+        </div>
+        <div class="btnrow" id="lfotgt" style="margin-top:12px;">
+          <button class="opt on" data-lfo="off">off</button>
+          <button class="opt" data-lfo="filter">filt</button>
+          <button class="opt" data-lfo="pitch">pitch</button>
+        </div>
+      </section>
+
+      <section class="module" aria-label="Master" style="flex:0 1 96px;min-width:84px;">
+        <h2>Master</h2>
+        <div class="row">
+          <div class="col">
+            <div class="val" data-for="vol">62</div>
+            <div class="fader" data-param="vol" data-min="0" data-max="100" data-step="1" data-value="62" tabindex="0" role="slider" aria-label="master volume" aria-valuemin="0" aria-valuemax="100" aria-valuenow="62"><div class="slot"></div><div class="fill"></div><div class="cap"></div></div>
+            <div class="lbl">vol</div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+    <div class="presets">
+      <span class="tag">presets</span>
+      <button class="opt" data-preset="bass">bass</button>
+      <button class="opt" data-preset="lead">lead</button>
+      <button class="opt" data-preset="pad">pad</button>
+      <button class="opt" data-preset="pluck">pluck</button>
+      <button class="opt" data-preset="wobble">wobble</button>
+    </div>
+
+    <div class="kbd-wrap">
+      <div class="keyboard"><div class="keys" id="keys"></div></div>
+    </div>
+
+  </div>
+  <div class="cheek" aria-hidden="true"></div>
+</div>
+
+<footer>
+  Play with the mouse, or your computer keyboard: <b>A&nbsp;S&nbsp;D&nbsp;F&nbsp;G&nbsp;H&nbsp;J&nbsp;K</b> are the white keys and <b>W&nbsp;E&nbsp;T&nbsp;Y&nbsp;U</b> the black ones. Polyphonic — hold several at once. Drag the faders (or focus one and use the arrow keys). Signal path: two oscillators &rarr; resonant low-pass filter &rarr; amp envelope.
+</footer>
+
+<script>
+(function(){
+  "use strict";
+
+  var P = {
+    wave:"sawtooth", oct:0,
+    detune:8, thick:35,
+    cutoff:2200, res:7, fenv:45,
+    att:4, dec:30, sus:70, rel:28,
+    lforate:5, lfodepth:0, lfotgt:"off",
+    vol:62
+  };
+
+  var ac=null, master=null, analyser=null, lfoOsc=null, lfoFilt=null, lfoPitch=null;
+  var voices={};
+
+  function init(){
+    if(ac) return;
+    ac = new (window.AudioContext||window.webkitAudioContext)();
+    master = ac.createGain();
+    master.gain.value = P.vol/100*0.7;
+    analyser = ac.createAnalyser();
+    analyser.fftSize = 2048;
+    master.connect(analyser);
+    analyser.connect(ac.destination);
+
+    lfoOsc = ac.createOscillator(); lfoOsc.type="sine"; lfoOsc.frequency.value=P.lforate;
+    lfoFilt = ac.createGain(); lfoPitch = ac.createGain();
+    lfoFilt.gain.value = 0; lfoPitch.gain.value = 0;
+    lfoOsc.connect(lfoFilt); lfoOsc.connect(lfoPitch);
+    lfoOsc.start();
+    applyLfoDepth();
+
+    var led=document.getElementById("led"); led.classList.add("on");
+    document.getElementById("powtxt").textContent="active";
+    drawScope();
+  }
+  function resume(){ init(); if(ac.state==="suspended") ac.resume(); }
+
+  function applyLfoDepth(){
+    if(!ac) return;
+    var d = P.lfodepth/100;
+    lfoFilt.gain.setTargetAtTime(P.lfotgt==="filter" ? d*2400 : 0, ac.currentTime, 0.02);
+    lfoPitch.gain.setTargetAtTime(P.lfotgt==="pitch" ? d*60 : 0, ac.currentTime, 0.02);
+  }
+
+  function noteOn(id, freq){
+    resume();
+    if(voices[id]) return;
+    var t=ac.currentTime;
+    var o1=ac.createOscillator(), o2=ac.createOscillator();
+    var mix=ac.createGain(), filt=ac.createBiquadFilter(), vca=ac.createGain();
+
+    o1.type=P.wave; o2.type=P.wave;
+    o1.frequency.value=freq; o2.frequency.value=freq;
+    o2.detune.value=P.detune;
+    var g2=ac.createGain(); g2.gain.value=P.thick/100;
+    o1.connect(mix); o2.connect(g2); g2.connect(mix);
+
+    filt.type="lowpass"; filt.Q.value=P.res;
+    var base=P.cutoff, peak=Math.min(11000, base + (P.fenv/100)*7000);
+    var aT=Math.max(0.002,(P.att/100)*1.6), dT=Math.max(0.02,(P.dec/100)*1.8);
+    filt.frequency.setValueAtTime(base, t);
+    filt.frequency.linearRampToValueAtTime(peak, t+aT);
+    filt.frequency.setTargetAtTime(base, t+aT, dT*0.6+0.05);
+
+    var susLvl=Math.max(0.0001,(P.sus/100))*0.32;
+    vca.gain.setValueAtTime(0.0001, t);
+    vca.gain.exponentialRampToValueAtTime(0.32, t+aT);
+    vca.gain.exponentialRampToValueAtTime(Math.max(0.0001,susLvl), t+aT+dT);
+
+    mix.connect(filt); filt.connect(vca); vca.connect(master);
+    try{ lfoFilt.connect(filt.frequency); }catch(e){}
+    try{ lfoPitch.connect(o1.detune); }catch(e){}
+    try{ lfoPitch.connect(o2.detune); }catch(e){}
+
+    o1.start(); o2.start();
+    voices[id]={o1:o1,o2:o2,filt:filt,vca:vca};
+  }
+
+  function noteOff(id){
+    var v=voices[id]; if(!v) return;
+    var t=ac.currentTime, rel=Math.max(0.03,(P.rel/100)*1.8);
+    v.vca.gain.cancelScheduledValues(t);
+    v.vca.gain.setValueAtTime(Math.max(0.0001,v.vca.gain.value), t);
+    v.vca.gain.exponentialRampToValueAtTime(0.0001, t+rel);
+    v.o1.stop(t+rel+0.03); v.o2.stop(t+rel+0.03);
+    try{ lfoFilt.disconnect(v.filt.frequency); }catch(e){}
+    try{ lfoPitch.disconnect(v.o1.detune); lfoPitch.disconnect(v.o2.detune); }catch(e){}
+    delete voices[id];
+  }
+
+  function liveUpdate(param){
+    if(!ac) return; var t=ac.currentTime;
+    if(param==="vol") master.gain.setTargetAtTime(P.vol/100*0.7,t,0.02);
+    if(param==="lforate") lfoOsc.frequency.setTargetAtTime(P.lforate,t,0.02);
+    if(param==="lfodepth") applyLfoDepth();
+    if(param==="cutoff"||param==="res"){
+      for(var k in voices){
+        if(param==="res") voices[k].filt.Q.setTargetAtTime(P.res,t,0.03);
+        else voices[k].filt.frequency.setTargetAtTime(P.cutoff,t,0.05);
+      }
+    }
+  }
+
+  /* ---- scope ---- */
+  function drawScope(){
+    var cv=document.getElementById("scope"), cx=cv.getContext("2d");
+    var buf=new Uint8Array(analyser.fftSize);
+    function frame(){
+      requestAnimationFrame(frame);
+      analyser.getByteTimeDomainData(buf);
+      cx.clearRect(0,0,cv.width,cv.height);
+      cx.lineWidth=2; cx.strokeStyle="#eaa53d";
+      cx.shadowColor="rgba(234,165,61,.6)"; cx.shadowBlur=6;
+      cx.beginPath();
+      var slice=cv.width/buf.length;
+      for(var i=0;i<buf.length;i++){
+        var y=(buf[i]/128.0)*(cv.height/2);
+        var x=i*slice;
+        if(i===0) cx.moveTo(x,y); else cx.lineTo(x,y);
+      }
+      cx.stroke();
+    }
+    frame();
+  }
+
+  /* ---- faders ---- */
+  function fmt(param,v){
+    if(param==="cutoff") return Math.round(v);
+    if(param==="lforate") return v.toFixed(1);
+    if(param==="res") return (Math.round(v*2)/2).toString().replace(/\.0$/,"");
+    return Math.round(v);
+  }
+  document.querySelectorAll(".fader").forEach(function(f){
+    var min=+f.dataset.min, max=+f.dataset.max, step=+f.dataset.step, val=+f.dataset.value;
+    var param=f.dataset.param;
+    var fill=f.querySelector(".fill"), cap=f.querySelector(".cap");
+    var out=document.querySelector('.val[data-for="'+param+'"]');
+    function render(){
+      var pct=(val-min)/(max-min);
+      var h=f.clientHeight-8, y=4+(1-pct)*h;
+      fill.style.height=(h*pct)+"px";
+      cap.style.top=y+"px";
+      f.setAttribute("aria-valuenow", fmt(param,val));
+      if(out) out.textContent=fmt(param,val);
+    }
+    function set(v){
+      v=Math.max(min,Math.min(max,v));
+      v=Math.round(v/step)*step;
+      val=v; P[param]=v; render(); liveUpdate(param);
+    }
+    function fromY(clientY){
+      var r=f.getBoundingClientRect();
+      var pct=1-((clientY-r.top-4)/(r.height-8));
+      set(min+pct*(max-min));
+    }
+    var dragging=false;
+    f.addEventListener("pointerdown",function(e){
+      dragging=true; f.setPointerCapture(e.pointerId); fromY(e.clientY); e.preventDefault();
+    });
+    f.addEventListener("pointermove",function(e){ if(dragging) fromY(e.clientY); });
+    f.addEventListener("pointerup",function(){dragging=false;});
+    f.addEventListener("pointercancel",function(){dragging=false;});
+    f.addEventListener("keydown",function(e){
+      var big=(max-min)/10;
+      if(e.key==="ArrowUp"||e.key==="ArrowRight"){set(val+step);e.preventDefault();}
+      else if(e.key==="ArrowDown"||e.key==="ArrowLeft"){set(val-step);e.preventDefault();}
+      else if(e.key==="PageUp"){set(val+big);e.preventDefault();}
+      else if(e.key==="PageDown"){set(val-big);e.preventDefault();}
+      else if(e.key==="Home"){set(min);e.preventDefault();}
+      else if(e.key==="End"){set(max);e.preventDefault();}
+    });
+    f._set=set;
+    window.addEventListener("resize",render);
+    render();
+  });
+  function setFader(param,v){
+    var f=document.querySelector('.fader[data-param="'+param+'"]');
+    if(f&&f._set) f._set(v);
+  }
+
+  /* ---- waveform / octave / lfo target ---- */
+  document.querySelectorAll("#waves .opt").forEach(function(b){
+    b.addEventListener("click",function(){
+      document.querySelectorAll("#waves .opt").forEach(function(x){x.classList.remove("on");});
+      b.classList.add("on"); P.wave=b.dataset.wave;
+    });
+  });
+  function setWave(w){
+    P.wave=w;
+    document.querySelectorAll("#waves .opt").forEach(function(x){
+      x.classList.toggle("on", x.dataset.wave===w);
+    });
+  }
+  var octVal=document.getElementById("oct-val");
+  function setOct(o){ P.oct=Math.max(-2,Math.min(2,o)); octVal.textContent=(P.oct>0?"+":"")+P.oct; }
+  document.getElementById("oct-dn").addEventListener("click",function(){setOct(P.oct-1);});
+  document.getElementById("oct-up").addEventListener("click",function(){setOct(P.oct+1);});
+  document.querySelectorAll("#lfotgt .opt").forEach(function(b){
+    b.addEventListener("click",function(){
+      document.querySelectorAll("#lfotgt .opt").forEach(function(x){x.classList.remove("on");});
+      b.classList.add("on"); P.lfotgt=b.dataset.lfo; applyLfoDepth();
+    });
+  });
+  function setLfoTgt(tg){
+    P.lfotgt=tg;
+    document.querySelectorAll("#lfotgt .opt").forEach(function(x){x.classList.toggle("on",x.dataset.lfo===tg);});
+    applyLfoDepth();
+  }
+
+  /* ---- presets ---- */
+  var PRESETS={
+    bass:{wave:"sawtooth",oct:-1,detune:6,thick:30,cutoff:900,res:9,fenv:55,att:2,dec:35,sus:55,rel:22,lfodepth:0,lfotgt:"off"},
+    lead:{wave:"square",oct:0,detune:10,thick:45,cutoff:3200,res:6,fenv:35,att:3,dec:25,sus:80,rel:30,lfodepth:18,lfotgt:"pitch"},
+    pad:{wave:"sawtooth",oct:0,detune:16,thick:70,cutoff:2600,res:4,fenv:30,att:55,dec:50,sus:85,rel:75,lfodepth:22,lfotgt:"filter"},
+    pluck:{wave:"triangle",oct:0,detune:4,thick:20,cutoff:4200,res:11,fenv:70,att:1,dec:22,sus:20,rel:18,lfodepth:0,lfotgt:"off"},
+    wobble:{wave:"sawtooth",oct:-1,detune:8,thick:40,cutoff:1400,res:13,fenv:40,att:3,dec:30,sus:70,rel:24,lforate:3.2,lfodepth:65,lfotgt:"filter"}
+  };
+  document.querySelectorAll("[data-preset]").forEach(function(b){
+    b.addEventListener("click",function(){
+      resume();
+      var p=PRESETS[b.dataset.preset]; if(!p) return;
+      for(var key in p){
+        if(key==="wave") setWave(p.wave);
+        else if(key==="oct") setOct(p.oct);
+        else if(key==="lfotgt") setLfoTgt(p.lfotgt);
+        else setFader(key,p[key]);
+      }
+      document.querySelectorAll("[data-preset]").forEach(function(x){x.classList.remove("on");});
+      b.classList.add("on");
+    });
+  });
+
+  /* ---- keyboard build ---- */
+  var SEMI=[
+    {n:"C",b:false},{n:"C#",b:true},{n:"D",b:false},{n:"D#",b:true},
+    {n:"E",b:false},{n:"F",b:false},{n:"F#",b:true},{n:"G",b:false},
+    {n:"G#",b:true},{n:"A",b:false},{n:"A#",b:true},{n:"B",b:false}
+  ];
+  var START=48; // C3
+  var TOTAL=25; // two octaves + top C
+  var KEYMAP={a:0,w:1,s:2,e:3,d:4,f:5,t:6,g:7,y:8,u:9,h:10,j:11,k:12};
+  var keysEl=document.getElementById("keys");
+  var whiteCount=0;
+  for(var i=0;i<TOTAL;i++){ if(!SEMI[i%12].b) whiteCount++; }
+  var ww=100/whiteCount, wIdx=0;
+  var keyEls={};
+  for(var s=0;s<TOTAL;s++){
+    var info=SEMI[s%12], midi=START+s;
+    var el=document.createElement("div");
+    el.dataset.midi=midi;
+    var hintChar=null;
+    for(var kk in KEYMAP){ if(KEYMAP[kk]===s){ hintChar=kk.toUpperCase(); } }
+    if(!info.b){
+      el.className="kw"; el.style.left=(wIdx*ww)+"%"; el.style.width=ww+"%";
+      if(hintChar){ var h=document.createElement("div"); h.className="khint"; h.textContent=hintChar; el.appendChild(h); }
+      wIdx++;
+    }else{
+      el.className="kb";
+      el.style.left="calc("+(wIdx*ww)+"% - "+(ww*0.32)+"%)";
+      el.style.width=(ww*0.64)+"%";
+      if(hintChar){ var hb=document.createElement("div"); hb.className="khint"; hb.textContent=hintChar; el.appendChild(hb); }
+    }
+    keysEl.appendChild(el);
+    keyEls[midi]=el;
+  }
+  function midiToFreq(m){ return 440*Math.pow(2,(m-69)/12); }
+  function play(midi,el){
+    var real=midi+P.oct*12;
+    noteOn("m"+midi, midiToFreq(real));
+    if(el) el.classList.add("dn");
+  }
+  function stop(midi,el){ noteOff("m"+midi); if(el) el.classList.remove("dn"); }
+
+  keysEl.querySelectorAll("[data-midi]").forEach(function(el){
+    var midi=+el.dataset.midi;
+    el.addEventListener("pointerdown",function(e){e.preventDefault();play(midi,el);});
+    el.addEventListener("pointerup",function(){stop(midi,el);});
+    el.addEventListener("pointerleave",function(){stop(midi,el);});
+    el.addEventListener("pointercancel",function(){stop(midi,el);});
+  });
+
+  window.addEventListener("keydown",function(e){
+    if(e.repeat||e.metaKey||e.ctrlKey) return;
+    var idx=KEYMAP[e.key.toLowerCase()];
+    if(idx===undefined) return;
+    var midi=START+idx, el=keyEls[midi];
+    if(el && !el.classList.contains("dn")){ play(midi,el); }
+  });
+  window.addEventListener("keyup",function(e){
+    var idx=KEYMAP[e.key.toLowerCase()];
+    if(idx===undefined) return;
+    var midi=START+idx; stop(midi,keyEls[midi]);
+  });
+
+  window.addEventListener("pointerdown",resume,{once:true});
+})();
+</script>
+</body>
+</html>
