@@ -3,7 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <title>Synthesizers</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
+    /* Embed Tempus Sans ITC from local project folder */
+    @font-face {
+      font-family: "Tempus Sans ITC";
+      src: url("TempusITCTT.woff2") format("woff2"),
+           url("TempusITCTT.woff") format("woff");
+      font-weight: normal;
+      font-style: normal;
+    }
+
     body {
       margin: 0;
       height: 100vh;
@@ -11,32 +21,57 @@
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      font-family: Arial, sans-serif;
-      background-color: #111;
+      font-family: "Tempus Sans ITC", Arial, sans-serif;
+      background-image: url('background.jpg');
+      background-size: cover;
+      background-position: center;
+      background-attachment: fixed;
       color: #eee;
     }
     h1 {
-      margin-bottom: 40px;
-      font-size: 2.5em;
+      margin-bottom: 5vh;
+      font-size: clamp(2em, 6vw, 3em);
       color: #ffcc00;
+      text-shadow: 0 0 8px #ffcc00, 0 0 15px #ffcc00;
     }
     .menu {
       display: flex;
       flex-direction: column;
-      gap: 20px;
+      gap: 3vh;
+      width: 80%;
+      max-width: 400px;
     }
     .menu a {
       text-decoration: none;
-      padding: 15px 30px;
+      padding: clamp(12px, 3vh, 20px) clamp(20px, 5vw, 40px);
       border: 2px solid #ffcc00;
       border-radius: 8px;
       color: #ffcc00;
-      font-size: 1.2em;
-      transition: background-color 0.3s, color 0.3s;
+      font-size: clamp(1em, 4vw, 1.4em);
+      font-weight: bold; /* bold text */
+      background-color: rgba(255, 204, 0, 0.1); /* subtle translucent background */
+      transition: background-color 0.3s, color 0.3s, box-shadow 0.3s;
+      text-align: center;
     }
     .menu a:hover {
       background-color: #ffcc00;
       color: #111;
+    }
+
+    /* 📱 Mobile optimization */
+    @media (max-width: 600px) {
+      h1 {
+        font-size: 8vw;
+      }
+      .menu a {
+        font-size: 5vw;
+        padding: 4vh 6vw;
+      }
+      .menu a:hover {
+        background-color: #ffcc00;
+        color: #111;
+        box-shadow: 0 0 12px #ffcc00, 0 0 20px #ffcc00; /* glowing effect */
+      }
     }
   </style>
 </head>
